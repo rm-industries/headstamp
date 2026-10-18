@@ -29,28 +29,28 @@ const header: Rule = {
     return {
       Program(node) {
         const options = context.options[0];
-        if (
-          context.options.length !== 1 ||
-          options === null ||
-          typeof options !== 'object' ||
-          !('template' in options) ||
-          typeof options.template !== 'string' ||
-          Object.keys(options).length !== 1
-        ) {
+        const hasOneOptionsArgument = context.options.length === 1;
+        const isOptionsObject = hasOneOptionsArgument && options !== null && typeof options === 'object';
+        const configuredTemplate = isOptionsObject && 'template' in options ? options.template : undefined;
+        const hasTemplateString = typeof configuredTemplate === 'string';
+        const hasOnlyTemplateOption = hasTemplateString && isOptionsObject && Object.keys(options).length === 1;
+        if (!hasTemplateString || !hasOnlyTemplateOption) {
           throw new Error('Headstamp requires a template string.');
         }
-        let template = templates.get(options.template);
+        let template = templates.get(configuredTemplate);
         if (template === undefined) {
-          template = options.template.replace(/\r\n/g, '\n').replace(/\n+$/, '');
-          const block =
+          template = configuredTemplate.replace(/\r\n/g, '\n').replace(/\n+$/, '');
+          const isBlockComment =
             template.length >= 4 && template.startsWith('/*') && template.indexOf('*/') === template.length - 2;
-          const lines = template.split('\n').every((line) => line.startsWith('//'));
-          if ((!block && !lines) || /[\r\u2028\u2029]/.test(template)) {
+          const isLineCommentGroup = template.split('\n').every((line) => line.startsWith('//'));
+          const hasSupportedCommentStyle = isBlockComment || isLineCommentGroup;
+          const hasUnsupportedLineEndings = /[\r\u2028\u2029]/.test(template);
+          if (!hasSupportedCommentStyle || hasUnsupportedLineEndings) {
             throw new Error(
               'Headstamp template must be one complete block comment or consecutive // comments using LF or CRLF.',
             );
           }
-          templates.set(options.template, template);
+          templates.set(configuredTemplate, template);
         }
         const source = context.sourceCode;
         const text = source.text;
@@ -66,7 +66,9 @@ const header: Rule = {
           if (first.type === 'Line') {
             for (const comment of comments) {
               if (comment.range[0] < end) continue;
-              if (comment.type !== 'Line' || !/^(?:\r\n|\n)[\t ]*$/.test(text.slice(end, comment.range[0]))) break;
+              const isLineComment = comment.type === 'Line';
+              const followsOnNextLine = /^(?:\r\n|\n)[\t ]*$/.test(text.slice(end, comment.range[0]));
+              if (!isLineComment || !followsOnNextLine) break;
               end = comment.range[1];
             }
           }
@@ -79,7 +81,8 @@ const header: Rule = {
         const contentStart = end + whitespace.length;
         const hasContent = contentStart < text.length;
         const indent = hasContent ? whitespace.slice(whitespace.lastIndexOf('\n') + 1) : '';
-        const prefix = shebang && !shebang.endsWith('\n') ? eol : '';
+        const needsShebangNewline = shebang.length > 0 && !shebang.endsWith('\n');
+        const prefix = needsShebangNewline ? eol : '';
         const replacement = prefix + template.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
         if (text.slice(anchor, contentStart) === replacement) return;
         context.report({
