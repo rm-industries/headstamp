@@ -26,6 +26,8 @@ in specs, READMEs, examples, release notes, or other project documentation.
 - Deliver a standalone JavaScript plugin for oxlint, using its recommended
   `createOnce` API and a `Program` visitor to check each file's header.
 - Publish TypeScript types for configuration.
+- Write implementation and tests in TypeScript, with strict typechecking of both.
+  Distribute compiled JavaScript and declarations; keep tests out of package output.
 - Support JavaScript, TypeScript, JSX, and TSX. Use oxlint's existing overrides and
   ignores to select files.
 - Configure the rule through oxlint's existing config. Do not introduce separate

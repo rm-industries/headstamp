@@ -19,13 +19,13 @@
   },
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test test/*.test.js",
-    "test:rule": "npm run build && node --test test/header.test.js",
+    "typecheck": "tsc --project tsconfig.test.json",
+    "test": "npm run typecheck && npm run build && node --test test/*.test.ts",
+    "test:rule": "npm run typecheck && node --test test/header.test.ts",
     "lint": "oxlint src test",
     "prepack": "npm run build",
-    "format:check": "oxfmt --check src test package.json tsconfig.json",
-    "format": "oxfmt --write src test package.json tsconfig.json"
+    "format:check": "oxfmt --check src test package.json tsconfig.json tsconfig.test.json",
+    "format": "oxfmt --write src test package.json tsconfig.json tsconfig.test.json"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

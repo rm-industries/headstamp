@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { RuleTester } from "oxlint/plugins-dev";
-import plugin from "../dist/index.js";
+import plugin from "../src/index.ts";
 
 RuleTester.describe = describe;
 RuleTester.it = it;

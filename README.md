@@ -111,6 +111,11 @@ Tests use oxlint's public rule-testing API and real CLI runs. CLI tests exercise
 TypeScript configuration and exported types, external templates, supported source
 languages, overrides/ignores, distinct configurations, and repeated fixes.
 
+Implementation and tests are written in TypeScript. Both test commands strictly
+typecheck source and tests, then run the TypeScript tests with Node's built-in type
+stripping. The full suite builds the package first for CLI integration. Only plugin
+source is emitted to the package; tests are never included in the build output.
+
 Package output is ESM JavaScript plus TypeScript declarations. Build artifacts and
 development-only files are excluded from the published package surface; inspect it
 without publishing with `npm pack --dry-run`.

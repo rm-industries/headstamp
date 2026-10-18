@@ -11,9 +11,9 @@ const cli = join(root, "node_modules/oxlint/bin/oxlint");
 test("TypeScript config, external templates, overrides and ignores work through the CLI", (t) => {
   const directory = mkdtempSync(join(root, ".headstamp-test-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  const write = (name, content) => writeFileSync(join(directory, name), content);
-  const read = (name) => readFileSync(join(directory, name), "utf8");
-  const lint = (...args) =>
+  const write = (name: string, content: string) => writeFileSync(join(directory, name), content);
+  const read = (name: string) => readFileSync(join(directory, name), "utf8");
+  const lint = (...args: string[]) =>
     spawnSync(process.execPath, [cli, "--threads", "1", ...args, "."], {
       cwd: directory,
       encoding: "utf8",
@@ -61,7 +61,7 @@ export default defineConfig({
   assert.equal(read("inline.ts"), "// Inline\n\nexport {};\n");
   assert.equal(read("bom.js"), "\uFEFF/* Acme */\r\n\r\nexport {};\r\n");
   assert.equal(read("shebang.js"), "#!/usr/bin/env node\n/* Acme */\n\nexport {};\n");
-  for (const name of ["types.ts", "view.jsx", "view.tsx"]) {
+  for (const name of ["types.ts", "view.jsx", "view.tsx"] as const) {
     assert.equal(read(name), "/* Acme */\n\n" + inputs[name]);
   }
   assert.equal(read("ignored.js"), inputs["ignored.js"]);
