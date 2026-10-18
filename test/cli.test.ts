@@ -14,7 +14,7 @@ test('TypeScript config, external templates, overrides and ignores work through 
   const write = (name: string, content: string) => writeFileSync(join(directory, name), content);
   const read = (name: string) => readFileSync(join(directory, name), 'utf8');
   const lint = (...args: string[]) =>
-    spawnSync(process.execPath, [cli, '--threads', '1', ...args, '.'], {
+    spawnSync(process.execPath, [cli, '--format', 'default', '--threads', '1', ...args, '.'], {
       cwd: directory,
       encoding: 'utf8',
       timeout: 30000,
@@ -134,7 +134,8 @@ test('invalid literal template configuration fails without modifying source', (t
         rules: { 'headstamp/header': ['error', options] },
       }),
     );
-    const result = spawnSync(process.execPath, [cli, '--fix', 'source.js'], {
+    // GitHub's annotation reporter omits the details of thrown plugin errors.
+    const result = spawnSync(process.execPath, [cli, '--format', 'default', '--fix', 'source.js'], {
       cwd: directory,
       encoding: 'utf8',
       timeout: 30000,
