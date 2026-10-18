@@ -1,0 +1,42 @@
+{
+  "name": "@rm-industries/oxlint-plugin-headstamp",
+  "version": "0.1.0",
+  "description": "Oxlint-first literal header validation and safe insertion.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rm-industries/headstamp.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --project tsconfig.test.json",
+    "test": "npm run typecheck && npm run build && node --test test/*.test.ts",
+    "test:rule": "npm run typecheck && node --test test/header.test.ts",
+    "lint": "oxlint src test oxfmt.config.ts",
+    "prepack": "npm run build",
+    "format:check": "oxfmt --check .",
+    "format": "oxfmt --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "oxlint": "^1.88.0"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.0.0"
+  }
+}
