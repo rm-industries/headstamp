@@ -9,11 +9,14 @@ field repair are planned in subsequent tickets.
 ## Requirements
 
 - Node.js 22.18+ on the 22.x line, or Node.js 24+.
-- The Node-based oxlint package, version 1.88.x. Development is pinned to 1.88.0.
+- The Node-based oxlint package, version `^1.88.0` (1.88.0 or later within 1.x).
 
 Headstamp uses oxlint's `createOnce` API with a `Program` visitor. JavaScript plugins
-are still an alpha oxlint feature, so compatibility is deliberately limited to the
-tested release line. No benchmarked performance improvement is claimed.
+are still an alpha oxlint feature. CI verifies the lockfile's exact versions,
+currently oxlint 1.88.0. No benchmarked performance improvement is claimed.
+
+Development and peer dependencies use caret ranges. The committed lockfile and
+`npm ci` keep installs reproducible; dependency updates must pass the same checks.
 
 ## Try the local package
 

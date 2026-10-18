@@ -28,13 +28,13 @@
     "format": "oxfmt --write ."
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
-    "oxfmt": "0.73.0",
-    "oxlint": "1.88.0",
-    "typescript": "7.0.2"
+    "@types/node": "^22.20.5",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
-    "oxlint": "1.88.x"
+    "oxlint": "^1.88.0"
   },
   "engines": {
     "node": "^22.18.0 || >=24.0.0"
