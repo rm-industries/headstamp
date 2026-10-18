@@ -1,6 +1,7 @@
 # Headstamp
 
-Status: agreed product scope; implementation has not started.
+Status: agreed product scope. The literal-header slice is implemented; placeholders
+and field repairs remain follow-up work.
 
 ## Purpose
 
@@ -8,11 +9,11 @@ Build a focused, oxlint-first header validation and autofix plugin.
 Store header requirements in version-controlled configuration, with optional text
 templates and generated replacement values.
 
-The selected project name is Headstamp, with the intended GitHub repository
+The selected project name is Headstamp, with the private GitHub repository
 `rm-industries/headstamp`. The proposed npm package is
 `@rm-industries/oxlint-plugin-headstamp`; name availability and npm organization
-ownership must be confirmed before creation or publication. Repository creation
-and package publication are separate follow-up actions.
+ownership must be confirmed before publication. Package publication is a separate
+follow-up action.
 
 ## Documentation requirements
 
