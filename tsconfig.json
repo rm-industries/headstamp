@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "strict": true,
     "declaration": true,
+    "rewriteRelativeImportExtensions": true,
     "outDir": "dist",
     "rootDir": "src",
     "skipLibCheck": true

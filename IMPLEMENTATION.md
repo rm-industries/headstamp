@@ -20,3 +20,21 @@ public rule tests, CLI integration tests/fixtures, README and ignore rules.
 No placeholders, publishing, or unrelated machine-state changes. Preserve the
 existing untracked Serena configuration. Main risks are source-offset handling and
 mistaking a different opening comment for the configured header.
+
+## Placeholder validation and generation — #3
+
+1. Add a public rule test for generated placeholder content and observe it fail.
+   Extend the public options type and prepare validated templates separately from
+   oxlint's source-preservation logic.
+2. Validate entire single-line field values, preserve valid historical content, and
+   report invalid fields without repair. Reject malformed configuration and refuse
+   ambiguous capture boundaries. Cache by complete options rather than template text.
+3. Extend the same rule and CLI seams to cover configuration-generated values,
+   external templates, language variants, overrides/ignores, and configuration
+   isolation. Document the delivered slice and safety limits.
+4. Typecheck and run focused tests throughout, then run the full suite, formatting,
+   lint and package checks. Review standards and issue coverage, then commit.
+
+Scope: public types, internal template preparation/matching, existing rule lifecycle,
+TypeScript tests and usage docs. Existing-field repairs and scaffold completion
+remain in #4 and #5. No new dependencies or configuration loaders.

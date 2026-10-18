@@ -1,7 +1,7 @@
 {
   "name": "@rm-industries/oxlint-plugin-headstamp",
   "version": "0.1.0",
-  "description": "Oxlint-first literal header validation and safe insertion.",
+  "description": "Oxlint-first header templates, regex validation, and safe insertion.",
   "repository": {
     "type": "git",
     "url": "https://github.com/rm-industries/headstamp.git"
