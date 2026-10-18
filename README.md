@@ -35,8 +35,8 @@ npm install --save-dev /path/to/headstamp oxlint@1.88.0
 In your existing `oxlint.config.ts`:
 
 ```ts
-import { defineConfig } from "oxlint";
-import type { HeaderOptions } from "@rm-industries/oxlint-plugin-headstamp";
+import type { HeaderOptions } from '@rm-industries/oxlint-plugin-headstamp';
+import { defineConfig } from 'oxlint';
 
 const header = {
   template: `/*
@@ -45,13 +45,11 @@ const header = {
 } satisfies HeaderOptions;
 
 export default defineConfig({
-  jsPlugins: [
-    { name: "headstamp", specifier: "@rm-industries/oxlint-plugin-headstamp" },
-  ],
+  jsPlugins: [{ name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp' }],
   overrides: [
     {
-      files: ["src/**/*.{js,ts,jsx,tsx}"],
-      rules: { "headstamp/header": ["error", header] },
+      files: ['src/**/*.{js,ts,jsx,tsx}'],
+      rules: { 'headstamp/header': ['error', header] },
     },
   ],
 });
@@ -61,10 +59,10 @@ Use ordinary oxlint overrides and ignores to choose files. To store the template
 `HEADER.txt`, read it in configuration code:
 
 ```ts
-import { readFileSync } from "node:fs";
+import { readFileSync } from 'node:fs';
 
 const header = {
-  template: readFileSync(new URL("./HEADER.txt", import.meta.url), "utf8"),
+  template: readFileSync(new URL('./HEADER.txt', import.meta.url), 'utf8'),
 } satisfies HeaderOptions;
 ```
 
@@ -106,6 +104,17 @@ npm test
 npm run lint
 npm run format:check
 ```
+
+Run `npm run format` to apply Oxfmt formatting across the repository. EditorConfig
+sets UTF-8, LF, final newlines, two-space indentation, and a 120-column target.
+The typed Oxfmt config adds single quotes, trailing commas, and import/package
+sorting. Generated files and local state are excluded through the Toptal-generated
+Git ignore rules and the project's additional exclusions.
+
+GitHub Actions checks formatting and lint on pull requests and pushes to the main
+branch. A Node 22.18, 24, and 26 matrix runs strict typechecking, the package build,
+all tests, and package-content inspection. CI checks formatting without rewriting
+files; no release or publishing step is included.
 
 Tests use oxlint's public rule-testing API and real CLI runs. CLI tests exercise
 TypeScript configuration and exported types, external templates, supported source

@@ -44,8 +44,8 @@ The proposed public type is `HeaderOptions`. Configure the plugin with the expli
 alias `headstamp` and rule name `headstamp/header`.
 
 ```ts
-import { defineConfig } from "oxlint";
-import type { HeaderOptions } from "@rm-industries/oxlint-plugin-headstamp";
+import type { HeaderOptions } from '@rm-industries/oxlint-plugin-headstamp';
+import { defineConfig } from 'oxlint';
 
 const header = {
   template: `/*
@@ -54,26 +54,24 @@ const header = {
  */`,
   values: {
     years: {
-      pattern: "\\d{4}(?:-\\d{4})?",
+      pattern: '\\d{4}(?:-\\d{4})?',
       replacement: String(new Date().getUTCFullYear()),
     },
     owner: {
-      pattern: "Acme",
-      replacement: "Acme",
+      pattern: 'Acme',
+      replacement: 'Acme',
     },
     description: {
-      pattern: "\\S[^\\r\\n]*",
-      replacement: "",
+      pattern: '\\S[^\\r\\n]*',
+      replacement: '',
     },
   },
 } satisfies HeaderOptions;
 
 export default defineConfig({
-  jsPlugins: [
-    { name: "headstamp", specifier: "@rm-industries/oxlint-plugin-headstamp" },
-  ],
+  jsPlugins: [{ name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp' }],
   rules: {
-    "headstamp/header": ["error", header],
+    'headstamp/header': ['error', header],
   },
 });
 ```
@@ -84,9 +82,9 @@ contain a block comment or consecutive line comments.
 To keep the template in `HEADER.txt`, ordinary configuration code reads it:
 
 ```ts
-import { readFileSync } from "node:fs";
+import { readFileSync } from 'node:fs';
 
-const template = readFileSync(new URL("./HEADER.txt", import.meta.url), "utf8");
+const template = readFileSync(new URL('./HEADER.txt', import.meta.url), 'utf8');
 ```
 
 Configuration may likewise import a shared options object from another module.
@@ -124,18 +122,18 @@ If a replacement itself fails validation, use it to scaffold a missing header, b
 preserve existing user-entered content for that field and report the validation
 error. Other independently repairable fields may still be fixed.
 
-| Situation | Expected behavior |
-| --- | --- |
-| Header and all fields are valid | Pass; no change |
-| Valid older year or year range | Preserve it; do not require the current year |
-| No opening header/comment | Insert the template with replacement values |
-| Recognized header, invalid owner, valid years | Replace owner; preserve years |
-| Recognized header, invalid field, valid replacement | Replace that field |
-| Missing header, empty description replacement | Insert `Description: `; validation still fails |
-| Existing incomplete description, invalid replacement | Preserve description; report it |
-| Header has different literal wording or ambiguous boundaries | Report; do not autofix |
-| Unrecognized opening comment | Report; do not overwrite it or insert a competing header |
-| Proposed fix would make no change | Report without offering that fix |
+| Situation                                                    | Expected behavior                                        |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| Header and all fields are valid                              | Pass; no change                                          |
+| Valid older year or year range                               | Preserve it; do not require the current year             |
+| No opening header/comment                                    | Insert the template with replacement values              |
+| Recognized header, invalid owner, valid years                | Replace owner; preserve years                            |
+| Recognized header, invalid field, valid replacement          | Replace that field                                       |
+| Missing header, empty description replacement                | Insert `Description: `; validation still fails           |
+| Existing incomplete description, invalid replacement         | Preserve description; report it                          |
+| Header has different literal wording or ambiguous boundaries | Report; do not autofix                                   |
+| Unrecognized opening comment                                 | Report; do not overwrite it or insert a competing header |
+| Proposed fix would make no change                            | Report without offering that fix                         |
 
 A successful insertion can leave outstanding lint errors requiring human input.
 Fixes must converge: repeating `--fix` must not continually change or duplicate the

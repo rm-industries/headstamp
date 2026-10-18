@@ -22,10 +22,10 @@
     "typecheck": "tsc --project tsconfig.test.json",
     "test": "npm run typecheck && npm run build && node --test test/*.test.ts",
     "test:rule": "npm run typecheck && node --test test/header.test.ts",
-    "lint": "oxlint src test",
+    "lint": "oxlint src test oxfmt.config.ts",
     "prepack": "npm run build",
-    "format:check": "oxfmt --check src test package.json tsconfig.json tsconfig.test.json",
-    "format": "oxfmt --write src test package.json tsconfig.json tsconfig.test.json"
+    "format:check": "oxfmt --check .",
+    "format": "oxfmt --write ."
   },
   "devDependencies": {
     "@types/node": "22.20.5",
