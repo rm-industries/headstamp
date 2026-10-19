@@ -113,7 +113,7 @@ tester.run('header placeholders', plugin.rules.header, {
         { template: '/* Owner: {{owner}} */', values: { owner: { pattern: 'Acme|Other', replacement: 'Acme' } } },
       ],
       errors: [{ messageId: 'invalidValue', data: { fields: 'owner' } }],
-      output: null,
+      output: '/* Owner: Acme */\n\nexport {};\n',
     },
     {
       name: 'reports all invalid fields when their boundaries are clear',
@@ -128,7 +128,7 @@ tester.run('header placeholders', plugin.rules.header, {
         },
       ],
       errors: [{ messageId: 'invalidValue', data: { fields: 'year, owner' } }],
-      output: null,
+      output: '/* Year: 2026; Owner: Acme */\n\nexport {};\n',
     },
     {
       name: 'inserts replacement metacharacters as literal content',
@@ -192,7 +192,7 @@ tester.run('header placeholders', plugin.rules.header, {
       output: '/* Copyright 2026 Acme */\n\nexport {};\n',
     },
     {
-      name: 'reports an invalid field without fixing it',
+      name: 'repairs an invalid field with a valid replacement',
       code: '/* Copyright 202X Acme */\n\nexport {};\n',
       options: [
         {
@@ -201,7 +201,7 @@ tester.run('header placeholders', plugin.rules.header, {
         },
       ],
       errors: [{ messageId: 'invalidValue', data: { fields: 'year' } }],
-      output: null,
+      output: '/* Copyright 2026 Acme */\n\nexport {};\n',
     },
     {
       name: 'refuses multiple valid field boundaries',

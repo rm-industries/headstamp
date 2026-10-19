@@ -33,7 +33,7 @@ const header: Rule = {
       missing: 'Missing required header.',
       mismatch: 'Opening comment does not match the required header; review it manually.',
       spacing: 'Normalize spacing around the required header.',
-      invalidValue: 'Header field(s) {{fields}} do not match their patterns; review them manually.',
+      invalidValue: 'Header field(s) {{fields}} do not match their patterns.',
     },
   },
   createOnce(context) {
@@ -49,6 +49,7 @@ const header: Rule = {
           templates.set(optionsKey, prepared);
         }
         let headerText = prepared.rendered;
+        let invalidFields: string[] = [];
         const source = context.sourceCode;
         const text = source.text;
         const eol = /\r\n|\n/.exec(text)?.[0] ?? '\n';
@@ -70,15 +71,19 @@ const header: Rule = {
             }
           }
           headerText = text.slice(start, end).replace(/\r\n/g, '\n');
-          const invalidFields = prepared.validate(headerText);
-          if (invalidFields === null) {
+          const inspection = prepared.inspect(headerText);
+          if (inspection === null) {
             context.report({ node, messageId: 'mismatch' });
             return;
           }
-          if (invalidFields.length > 0) {
+          invalidFields = inspection.invalidFields;
+          const hasInvalidFields = invalidFields.length > 0;
+          const hasFieldRepairs = inspection.repaired !== headerText;
+          if (hasInvalidFields && !hasFieldRepairs) {
             context.report({ node, messageId: 'invalidValue', data: { fields: invalidFields.join(', ') } });
             return;
           }
+          headerText = inspection.repaired;
         }
         const whitespace = /^\s*/.exec(text.slice(end))![0];
         const contentStart = end + whitespace.length;
@@ -88,9 +93,12 @@ const header: Rule = {
         const prefix = needsShebangNewline ? eol : '';
         const replacement = prefix + headerText.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
         if (text.slice(anchor, contentStart) === replacement) return;
+        let messageId = first ? 'spacing' : 'missing';
+        if (invalidFields.length > 0) messageId = 'invalidValue';
         context.report({
           node,
-          messageId: first ? 'spacing' : 'missing',
+          messageId,
+          data: { fields: invalidFields.join(', ') },
           fix: (fixer) => fixer.replaceTextRange([anchor, contentStart], replacement),
         });
       },

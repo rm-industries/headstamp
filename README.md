@@ -4,8 +4,8 @@ An oxlint-first plugin that validates templated source headers and inserts missi
 ones safely. Supports JavaScript, TypeScript, JSX, and TSX.
 
 Supports complete literal templates and named, single-line placeholders with regex
-validation. Existing-field repair and the full incomplete-scaffold workflow remain
-follow-up work.
+validation and safe repair of invalid fields. The full incomplete-scaffold workflow
+remains follow-up work.
 
 ## Requirements
 
@@ -99,9 +99,13 @@ separator may occur inside a value if the patterns identify exactly one valid sp
 Multiple valid splits produce a diagnostic without autofix. A configuration whose
 otherwise-valid generated header has ambiguous field boundaries is rejected.
 
-Invalid existing fields are reported by name when their boundaries are clear and
-are left unchanged by `--fix`. Literal text identifies the header structure; changed
-wording or ambiguous invalid fields require manual review.
+Invalid existing fields are reported by name when their boundaries are clear.
+`--fix` replaces a field only when its configured replacement matches the entire
+pattern, preserving every valid field, including historical years and ranges. If a
+replacement fails its pattern, existing text in that field remains unchanged; other
+safe fields may still be repaired. A repair is refused if it would make boundaries
+ambiguous, reinterpret another field, or break the comment. Literal text identifies
+the header structure; changed wording or ambiguous extraction requires manual review.
 
 Replacements may intentionally fail their pattern; this is not a configuration error.
 They must still be single-line and preserve the complete comment. Missing-header
@@ -114,8 +118,9 @@ scaffold-completion behavior is reserved for a later slice.
   lines. Include the delimiters and desired internal whitespace. Trailing template
   newlines are ignored; LF and CRLF templates match either source convention.
 - Literal header text must match exactly, including internal whitespace. Placeholder
-  values must match their patterns. An incorrect or unrecognized opening comment
-  produces a diagnostic without autofix.
+  values must match their patterns. Recognized invalid fields may be repaired as
+  described above. Changed literal text or an unrecognized opening comment produces
+  a diagnostic without autofix.
   Consecutive opening `//` lines form one comment group: an extra line in that group
   requires manual review.
 - `oxlint --fix` inserts a missing header after any shebang, preserving a BOM,
