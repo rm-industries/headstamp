@@ -108,3 +108,17 @@ exercise actual packing and dry-run publication locally. Verify the packed publi
 exports. Document the required npm bootstrap and trusted-publisher configuration;
 no real npm publication, repository-visibility change, or credentials setup is part
 of this preparation change.
+
+## Ordinary source extensions — #13
+
+Verify all eight JavaScript/TypeScript extensions at the agreed real CLI seam,
+using source-type syntax and exact source-preservation assertions. Cover required
+diagnostics, insertion, acceptance, LF/CRLF, separate BOM/shebang prefixes, and
+repeated fixes. Exercise mixed-file overrides, disabled rules, and ignores with a
+single CLI worker to detect configuration leakage. Record the upstream rejection
+of BOM-before-shebang inputs without modifying those files. No runtime changes are
+needed when these behavioral checks pass; framework investigation remains #14.
+
+Run focused CLI tests and strict typechecking during implementation, then review
+against merged main and issue #13. Finish with the complete regression suite,
+formatting, lint, and package-content checks before committing.

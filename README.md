@@ -19,6 +19,20 @@ currently oxlint 1.88.0. No benchmarked performance improvement is claimed.
 Development and peer dependencies use caret ranges. The committed lockfile and
 `npm ci` keep installs reproducible; dependency updates must pass the same checks.
 
+## Tested source formats
+
+Real CLI tests verify `.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.cts`, `.jsx`, and
+`.tsx`, using module, CommonJS, typed, and JSX syntax as appropriate. For every
+extension, tests require missing-header diagnostics, exact header insertion,
+valid-header acceptance, unchanged source bodies, and repeated-fix convergence.
+They also cover LF/CRLF, BOM-only and shebang-only prefixes, and mixed-file
+configuration overrides, disabled rules, and ignores.
+
+Use oxlint's existing file discovery, overrides, and ignores; Headstamp adds no
+file selector or parser. Framework files such as Vue, Svelte, and Astro remain a
+separate capability investigation. Their physical-file headers are not verified
+or advertised as supported.
+
 ## Try the local package
 
 The npm package has not been published. Build this checkout first:
