@@ -93,14 +93,22 @@ const header: Rule = {
         const prefix = needsShebangNewline ? eol : '';
         const replacement = prefix + headerText.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
         if (text.slice(anchor, contentStart) === replacement) return;
+        const remainingInvalidFields = first
+          ? invalidFields.filter((name) => prepared.invalidReplacementFields.includes(name))
+          : prepared.invalidReplacementFields;
+        const repairedFields = invalidFields.filter((name) => !remainingInvalidFields.includes(name));
         let messageId = first ? 'spacing' : 'missing';
         if (invalidFields.length > 0) messageId = 'invalidValue';
         context.report({
           node,
           messageId,
-          data: { fields: invalidFields.join(', ') },
+          data: { fields: repairedFields.join(', ') },
           fix: (fixer) => fixer.replaceTextRange([anchor, contentStart], replacement),
         });
+        // Oxlint removes fixed diagnostics without re-linting; retain errors needing human input.
+        if (remainingInvalidFields.length > 0) {
+          context.report({ node, messageId: 'invalidValue', data: { fields: remainingInvalidFields.join(', ') } });
+        }
       },
     };
   },

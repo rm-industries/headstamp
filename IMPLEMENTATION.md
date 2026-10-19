@@ -55,3 +55,18 @@ remain in #4 and #5. No new dependencies or configuration loaders.
 No public options changes or new dependencies. Missing-header scaffold completion
 remains in #5. Changes reach template inspection, the rule's existing fix path,
 TypeScript behavioral tests, and documentation.
+
+## Intentionally incomplete scaffolds — #5
+
+1. Verify missing-header insertion with an intentionally invalid description at the
+   agreed public rule seam. Reuse the existing generation and repair behavior;
+   change production code only if a behavioral regression exposes a gap.
+2. Cover unfinished user text, valid human completion, and independent repairs
+   while required content remains incomplete. Use the real CLI to verify that
+   insertion leaves lint unsuccessful and repeated fixes preserve the scaffold.
+3. Document the completion workflow and remaining diagnostics. Typecheck and run
+   focused tests throughout, then review standards/spec coverage, run the full
+   suite and quality checks, and commit this slice.
+
+Scope: TypeScript rule/CLI tests and documentation, plus narrowly necessary runtime
+fixes if exposed. No new options, dependencies, or publishing steps.
