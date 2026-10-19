@@ -81,6 +81,11 @@ import type { HeaderOptions, HeaderValue } from "@rm-industries/oxlint-plugin-he
 const valid: HeaderOptions = { template: "/* Acme */" };
 const field: HeaderValue = { pattern: "Acme", replacement: "Acme" };
 const templated: HeaderOptions = { template: "/* {{owner}} */", values: { owner: field } };
+const prefixed: HeaderOptions = { template: "/* Acme */", allowedLeadingComments: ["// @ts-check", { pattern: "// pragma" }] };
+// @ts-expect-error Regex flags are not supported.
+const flags: HeaderOptions = { template: "/* Acme */", allowedLeadingComments: [{ pattern: "// pragma", flags: "i" }] };
+// @ts-expect-error Permitted comments must be literal comments or pattern objects.
+const badPrefix: HeaderOptions = { template: "/* Acme */", allowedLeadingComments: [42] };
 // @ts-expect-error A template is required.
 const missing: HeaderOptions = {};
 // @ts-expect-error A template must be a string.
@@ -132,6 +137,26 @@ test('invalid header configuration fails without modifying source', (t) => {
     { template: '// Acme\r// other' },
     { template: '// Acme\u2028export {};' },
     { template: '/* Acme */', unexpected: true },
+    ...[
+      null,
+      {},
+      '// pragma',
+      [null],
+      [42],
+      [{}],
+      [{ pattern: 42 }],
+      [{ pattern: '(', flags: 'i' }],
+      [{ pattern: '(' }],
+      [{ pattern: 'Acme)|(?:Other' }],
+      [''],
+      ['pragma'],
+      ['/*/'],
+      ['/* unclosed'],
+      ['/* pragma */ /* other */'],
+      ['// pragma\nexport {};'],
+      ['// pragma\u2028export {};'],
+      ['// pragma\r// other'],
+    ].map((allowedLeadingComments) => ({ template: '/* Acme */', allowedLeadingComments })),
     { template: '/* {{owner}} */' },
     { template: '/* {{constructor}} */', values: {} },
     { template: '/* {{owner}} */', values: null },
@@ -361,4 +386,100 @@ test('incomplete scaffolds remain unsuccessful and stable until human completion
   const fixed = lint('--fix');
   assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
   assert.equal(read(), completed);
+});
+
+test('permitted prefixes preserve source, isolate overrides, and retain scaffold errors in the CLI', (t) => {
+  const directory = mkdtempSync(join(root, '.headstamp-test-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const write = (name: string, text: string) => writeFileSync(join(directory, name), text);
+  const read = (name: string) => readFileSync(join(directory, name), 'utf8');
+  const lint = (...args: string[]) =>
+    spawnSync(process.execPath, [cli, '--format', 'default', '--threads', '1', ...args], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+  write(
+    'oxlint.config.ts',
+    String.raw`
+import { defineConfig } from 'oxlint';
+import type { HeaderOptions } from '@rm-industries/oxlint-plugin-headstamp';
+const header = {
+  template: '/* Copyright {{years}} {{owner}} */',
+  values: {
+    years: {pattern: '\\d{4}(?:-\\d{4})?', replacement: '2026'},
+    owner: {pattern: 'Acme', replacement: 'Acme'},
+  },
+  allowedLeadingComments: ['// @ts-check', {pattern: '/\\* pragma (?:one|two) \\*/'}],
+} satisfies HeaderOptions;
+export default defineConfig({
+  categories: {correctness: 'off'},
+  jsPlugins: [{name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp'}],
+  ignorePatterns: ['oxlint.config.ts', 'ignored.js'],
+  rules: {'headstamp/header': ['error', header]},
+  overrides: [
+    {files: ['alternate.ts'], rules: {'headstamp/header': ['error', {...header, allowedLeadingComments: ['/* alternate */']}] }},
+    {files: ['strict.js'], rules: {'headstamp/header': ['error', {...header, allowedLeadingComments: []}] }},
+    {files: ['line.ts'], rules: {'headstamp/header': ['error', {template: '// Acme', allowedLeadingComments: ['// @ts-check']}] }},
+    {files: ['disabled.js'], rules: {'headstamp/header': 'off'}},
+    {files: ['scaffold.ts'], rules: {'headstamp/header': ['error', {
+      ...header,
+      template: '/* Copyright {{years}} {{owner}}\n * Description: {{description}}\n */',
+      values: {...header.values, description: {pattern: '\\S.{9,}', replacement: ''}},
+    }] }},
+  ],
+});
+`,
+  );
+  const inputs = {
+    'source.ts': '// @ts-check\nexport const value: number = 1;\n',
+    'groups.js': '/* pragma one */\n/* pragma two */ \n\nexport {};\n',
+    'bom.js': '\uFEFF// @ts-check\r\nexport {};\r\n',
+    'script.js': '#!/usr/bin/env node\n// @ts-check\nexport {};\n',
+    'prefix-only.js': '// @ts-check',
+    'alternate.ts': '/* alternate */\nexport {};\n',
+    'line.ts': '// @ts-check',
+    'ignored.js': '// @ts-check\nexport {};\n',
+    'disabled.js': '// @ts-check\nexport {};\n',
+  };
+  for (const [name, text] of Object.entries(inputs)) write(name, text);
+  const fixed = lint('--fix', '.');
+  assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
+  assert.equal(read('source.ts'), '// @ts-check\n/* Copyright 2026 Acme */\n\nexport const value: number = 1;\n');
+  assert.equal(read('groups.js'), '/* pragma one */\n/* pragma two */ \n\n/* Copyright 2026 Acme */\n\nexport {};\n');
+  assert.equal(read('bom.js'), '\uFEFF// @ts-check\r\n/* Copyright 2026 Acme */\r\n\r\nexport {};\r\n');
+  assert.equal(read('script.js'), '#!/usr/bin/env node\n// @ts-check\n/* Copyright 2026 Acme */\n\nexport {};\n');
+  assert.equal(read('prefix-only.js'), '// @ts-check\n/* Copyright 2026 Acme */\n');
+  assert.equal(read('alternate.ts'), '/* alternate */\n/* Copyright 2026 Acme */\n\nexport {};\n');
+  assert.equal(read('line.ts'), '// @ts-check\n\n// Acme\n');
+  for (const name of ['ignored.js', 'disabled.js'] as const) assert.equal(read(name), inputs[name]);
+  const snapshot = Object.fromEntries(Object.keys(inputs).map((name) => [name, read(name)]));
+  const repeated = lint('--fix', '.');
+  assert.equal(repeated.status, 0, repeated.stdout + repeated.stderr);
+  for (const [name, text] of Object.entries(snapshot)) assert.equal(read(name), text);
+
+  write('strict.js', '// @ts-check\nexport {};\n');
+  write('alternate.ts', '// @ts-check\nexport {};\n');
+  for (const name of ['strict.js', 'alternate.ts']) {
+    const blocked = lint('--fix', name);
+    assert.equal(blocked.status, 1, blocked.stdout + blocked.stderr);
+    assert.match(blocked.stdout + blocked.stderr, /Opening comment does not match/);
+    assert.equal(read(name), '// @ts-check\nexport {};\n');
+  }
+  write('scaffold.ts', '// @ts-check\nexport {};\n');
+  const scaffold = '// @ts-check\n/* Copyright 2026 Acme\n * Description: \n */\n\nexport {};\n';
+  for (let run = 0; run < 2; run++) {
+    const result = lint('--fix', 'scaffold.ts');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /description do not match/);
+    assert.equal(read('scaffold.ts'), scaffold);
+  }
+  write('scaffold.ts', '// @ts-check\n/* Copyright 2001-2004 Other\n * Description: WIP\n */\n\nexport {};\n');
+  const repaired = lint('--fix', 'scaffold.ts');
+  assert.equal(repaired.status, 1, repaired.stdout + repaired.stderr);
+  assert.match(repaired.stdout + repaired.stderr, /description do not match/);
+  assert.equal(
+    read('scaffold.ts'),
+    '// @ts-check\n/* Copyright 2001-2004 Acme\n * Description: WIP\n */\n\nexport {};\n',
+  );
 });

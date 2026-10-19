@@ -15,6 +15,20 @@ const header: Rule = {
         type: 'object',
         properties: {
           template: { type: 'string' },
+          allowedLeadingComments: {
+            type: 'array',
+            items: {
+              anyOf: [
+                { type: 'string' },
+                {
+                  type: 'object',
+                  properties: { pattern: { type: 'string' } },
+                  required: ['pattern'],
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
           values: {
             type: 'object',
             additionalProperties: {
@@ -54,25 +68,42 @@ const header: Rule = {
         const text = source.text;
         const eol = /\r\n|\n/.exec(text)?.[0] ?? '\n';
         const shebang = /^#![^\r\n]*(?:\r\n|\n|$)/.exec(text)?.[0] ?? '';
-        const anchor = shebang.length;
-        const start = anchor + /^\s*/.exec(text.slice(anchor))![0].length;
+        let anchor = shebang.length;
+        let start = anchor + /^\s*/.exec(text.slice(anchor))![0].length;
         const comments = source.getAllComments();
-        const first = comments.find((comment) => comment.range[0] === start);
+        let commentIndex = comments.findIndex((comment) => comment.range[0] === start);
+        let first = commentIndex < 0 ? undefined : comments[commentIndex];
         let end = anchor;
-        if (first) {
+        let hasLeadingComments = false;
+        let prefixWhitespace = '';
+        let lastLeadingCommentIsLine = false;
+        while (first) {
           end = first.range[1];
           if (first.type === 'Line') {
-            for (const comment of comments) {
-              if (comment.range[0] < end) continue;
+            for (let nextIndex = commentIndex + 1; nextIndex < comments.length; nextIndex++) {
+              const comment = comments[nextIndex];
               const isLineComment = comment.type === 'Line';
               const followsOnNextLine = /^(?:\r\n|\n)[\t ]*$/.test(text.slice(end, comment.range[0]));
               if (!isLineComment || !followsOnNextLine) break;
               end = comment.range[1];
+              commentIndex = nextIndex;
             }
           }
           headerText = text.slice(start, end).replace(/\r\n/g, '\n');
           const inspection = prepared.inspect(headerText);
-          if (inspection === null) {
+          if (inspection === null && prepared.isAllowedLeadingComment(headerText)) {
+            hasLeadingComments = true;
+            lastLeadingCommentIsLine = first.type === 'Line';
+            prefixWhitespace = /^\s*/.exec(text.slice(end))![0];
+            anchor = end + prefixWhitespace.length;
+            start = anchor;
+            end = anchor;
+            first = comments[++commentIndex];
+            if (first?.range[0] !== start) first = undefined;
+            headerText = prepared.rendered;
+            continue;
+          }
+          if (inspection === null || inspection === 'ambiguous') {
             context.report({ node, messageId: 'mismatch' });
             return;
           }
@@ -84,13 +115,22 @@ const header: Rule = {
             return;
           }
           headerText = inspection.repaired;
+          break;
         }
         const whitespace = /^\s*/.exec(text.slice(end))![0];
         const contentStart = end + whitespace.length;
         const hasContent = contentStart < text.length;
-        const indent = hasContent ? whitespace.slice(whitespace.lastIndexOf('\n') + 1) : '';
+        const sourceWhitespace = hasLeadingComments && !first ? prefixWhitespace : whitespace;
+        const indent = hasContent ? sourceWhitespace.slice(sourceWhitespace.lastIndexOf('\n') + 1) : '';
         const needsShebangNewline = shebang.length > 0 && !shebang.endsWith('\n');
-        const prefix = needsShebangNewline ? eol : '';
+        let prefix = needsShebangNewline ? eol : '';
+        if (hasLeadingComments && !first) {
+          // A blank line prevents two line-comment groups from merging on the next lint run.
+          const needsLineGroupBoundary = lastLeadingCommentIsLine && headerText.startsWith('//');
+          const requiredNewlines = needsLineGroupBoundary ? 2 : 1;
+          const existingNewlines = prefixWhitespace.match(/\n/g)?.length ?? 0;
+          prefix = eol.repeat(Math.max(0, requiredNewlines - existingNewlines));
+        }
         const replacement = prefix + headerText.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
         if (text.slice(anchor, contentStart) === replacement) return;
         const remainingInvalidFields = first

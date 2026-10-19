@@ -1,7 +1,8 @@
 # Headstamp
 
 Status: literal headers, placeholder validation, missing-header generation, safe
-existing-field repair, and intentionally incomplete scaffolds are implemented.
+existing-field repair, intentionally incomplete scaffolds, and permitted leading
+comments are implemented.
 
 ## Purpose
 
@@ -141,6 +142,31 @@ A successful insertion can leave outstanding lint errors requiring human input.
 Fixes must converge: repeating `--fix` must not continually change or duplicate the
 header. Replacement strings are inserted literally, without replacement-string
 metacharacter expansion.
+
+## Permitted leading comments
+
+The optional `allowedLeadingComments` array defaults to empty. Entries are complete
+literal block comments or consecutive line-comment groups, or objects with a regex
+`pattern` string. Match whole comment units including delimiters, without regex
+flags; reject malformed literals, patterns, and option shapes. Normalize LF/CRLF
+for matching without changing prefix bytes.
+
+Walk only the opening prefix after any BOM/shebang. The required header takes
+precedence over allowlist matches, and ambiguous header extraction remains
+manual-review-only. Unknown comments stop the search without edits. Stop at code;
+do not search later comments. Never split a consecutive line-comment group.
+
+Preserve permitted text, order, and spacing. Insert or safely repair the header
+after the prefix, adding only the separator needed when inserting. Consecutive
+line-comment groups need a blank-line boundary so repeated fixes do not merge
+them. Prefix-only files receive the header and one final newline. Preserve source
+indentation, valid field values, and unfinished scaffold input; outstanding human
+input remains a lint error after fixes. Cache complete options without leaking
+allowlists across overrides.
+
+The header-to-source spacing requirement remains one blank line. Configurable
+spacing and broader format coverage are separate follow-up work. No EditorConfig
+integration or forced line-ending conversion is introduced.
 
 ## Source preservation
 
