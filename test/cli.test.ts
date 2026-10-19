@@ -81,6 +81,9 @@ import type { HeaderOptions, HeaderValue } from "@rm-industries/oxlint-plugin-he
 const valid: HeaderOptions = { template: "/* Acme */" };
 const field: HeaderValue = { pattern: "Acme", replacement: "Acme" };
 const templated: HeaderOptions = { template: "/* {{owner}} */", values: { owner: field } };
+const zeroSpacing: HeaderOptions = { template: "/* Acme */", blankLinesAfter: 0 };
+// @ts-expect-error Blank-line counts must be numbers.
+const badSpacing: HeaderOptions = { template: "/* Acme */", blankLinesAfter: "0" };
 const prefixed: HeaderOptions = { template: "/* Acme */", allowedLeadingComments: ["// @ts-check", { pattern: "// pragma" }] };
 // @ts-expect-error Regex flags are not supported.
 const flags: HeaderOptions = { template: "/* Acme */", allowedLeadingComments: [{ pattern: "// pragma", flags: "i" }] };
@@ -137,6 +140,10 @@ test('invalid header configuration fails without modifying source', (t) => {
     { template: '// Acme\r// other' },
     { template: '// Acme\u2028export {};' },
     { template: '/* Acme */', unexpected: true },
+    ...[-1, 0.5, '0', null, true, [], {}, 1e100, Number.MAX_SAFE_INTEGER + 1].map((blankLinesAfter) => ({
+      template: '/* Acme */',
+      blankLinesAfter,
+    })),
     ...[
       null,
       {},
@@ -482,4 +489,103 @@ export default defineConfig({
     read('scaffold.ts'),
     '// @ts-check\n/* Copyright 2001-2004 Acme\n * Description: WIP\n */\n\nexport {};\n',
   );
+});
+
+test('exact spacing stays isolated across CLI overrides and retains manual errors', (t) => {
+  const directory = mkdtempSync(join(root, '.headstamp-test-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const write = (name: string, text: string) => writeFileSync(join(directory, name), text);
+  const read = (name: string) => readFileSync(join(directory, name), 'utf8');
+  const lint = (...args: string[]) =>
+    spawnSync(process.execPath, [cli, '--format', 'default', '--threads', '1', ...args], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+  const header = {
+    template: '/* Copyright {{years}} {{owner}} */',
+    values: {
+      years: { pattern: '\\d{4}(?:-\\d{4})?', replacement: '2026' },
+      owner: { pattern: 'Acme', replacement: 'Acme' },
+    },
+    allowedLeadingComments: ['// @ts-check'],
+  };
+  write(
+    '.oxlintrc.json',
+    JSON.stringify({
+      categories: { correctness: 'off' },
+      jsPlugins: [{ name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp' }],
+      rules: { 'headstamp/header': ['error', header] },
+      overrides: [
+        { files: ['zero.ts'], rules: { 'headstamp/header': ['error', { ...header, blankLinesAfter: 0 }] } },
+        {
+          files: ['three.js', 'header-only.js'],
+          rules: { 'headstamp/header': ['error', { ...header, blankLinesAfter: 3 }] },
+        },
+        {
+          files: ['line.js'],
+          rules: {
+            'headstamp/header': [
+              'error',
+              { template: '// Acme', allowedLeadingComments: ['// @ts-check'], blankLinesAfter: 0 },
+            ],
+          },
+        },
+        {
+          files: ['scaffold.ts'],
+          rules: {
+            'headstamp/header': [
+              'error',
+              {
+                ...header,
+                template: '/* Description: {{description}} */',
+                values: { description: { pattern: '\\S.{9,}', replacement: '' } },
+                blankLinesAfter: 2,
+              },
+            ],
+          },
+        },
+      ],
+    }),
+  );
+  const inputs = {
+    'default.js': 'export {};\n',
+    'zero.ts': '// @ts-check\n  export const count: number = 1;\n',
+    'three.js': '/* Copyright 2001-2004 Other */\nexport {};\n',
+    'header-only.js': '',
+    'bom.js': '\uFEFFexport {};\r\n',
+    'line.js': '// @ts-check\nexport {};\n',
+  };
+  for (const [name, text] of Object.entries(inputs)) write(name, text);
+  const fixed = lint('--fix', '.');
+  assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
+  const expected = {
+    'default.js': '/* Copyright 2026 Acme */\n\nexport {};\n',
+    'zero.ts': '// @ts-check\n  /* Copyright 2026 Acme */\n  export const count: number = 1;\n',
+    'three.js': '/* Copyright 2001-2004 Acme */\n\n\n\nexport {};\n',
+    'header-only.js': '/* Copyright 2026 Acme */\n',
+    'bom.js': '\uFEFF/* Copyright 2026 Acme */\r\n\r\nexport {};\r\n',
+    'line.js': '// @ts-check\n\n// Acme\nexport {};\n',
+  };
+  for (const [name, text] of Object.entries(expected)) assert.equal(read(name), text);
+  const repeated = lint('--fix', '.');
+  assert.equal(repeated.status, 0, repeated.stdout + repeated.stderr);
+  for (const [name, text] of Object.entries(expected)) assert.equal(read(name), text);
+
+  write('scaffold.ts', '// @ts-check\n/* Description: WIP */\nexport {};\n');
+  const scaffold = '// @ts-check\n/* Description: WIP */\n\n\nexport {};\n';
+  for (let run = 0; run < 2; run++) {
+    const result = lint('--fix', 'scaffold.ts');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /description do not match/);
+    assert.equal(read('scaffold.ts'), scaffold);
+  }
+  const conflict = '// Acme\n\n// User documentation\nexport {};\n';
+  write('line.js', conflict);
+  for (let run = 0; run < 2; run++) {
+    const result = lint('--fix', 'line.js');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /would merge the header/);
+    assert.equal(read('line.js'), conflict);
+  }
 });

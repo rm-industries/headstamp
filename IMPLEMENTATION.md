@@ -83,3 +83,14 @@ fixes if exposed. No new options, dependencies, or publishing steps.
    prefix matching and preservation without adding configurable spacing or formats.
 4. Typecheck throughout, review standards and issue coverage, then run the full
    suite and quality/package checks and commit on the feature branch.
+
+## Configurable header spacing — #12
+
+1. Add a public rule regression for zero blank lines and observe it fail. Extend
+   typed options and runtime/schema validation, reusing the existing fix boundary.
+2. Cover exact counts, source preservation, prefix interaction, empty/header-only
+   files, repairs, incomplete scaffolds, and convergence at the approved seams.
+3. Verify config isolation and malformed options through real CLI fixtures; align
+   public documentation while retaining preservation of source line endings.
+4. Typecheck and run focused tests throughout. Review standards and spec coverage,
+   run the full suite and quality/package checks, then commit this slice.

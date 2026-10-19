@@ -15,6 +15,7 @@ const header: Rule = {
         type: 'object',
         properties: {
           template: { type: 'string' },
+          blankLinesAfter: { type: 'integer', minimum: 0, maximum: Number.MAX_SAFE_INTEGER },
           allowedLeadingComments: {
             type: 'array',
             items: {
@@ -47,6 +48,8 @@ const header: Rule = {
       missing: 'Missing required header.',
       mismatch: 'Opening comment does not match the required header; review it manually.',
       spacing: 'Normalize spacing around the required header.',
+      unsafeSpacing:
+        'Zero blank lines would merge the header with following line comments; use a block header or at least one blank line.',
       invalidValue: 'Header field(s) {{fields}} do not match their patterns.',
     },
   },
@@ -64,6 +67,7 @@ const header: Rule = {
         }
         let headerText = prepared.rendered;
         let invalidFields: string[] = [];
+        let hasFieldRepairs = false;
         const source = context.sourceCode;
         const text = source.text;
         const eol = /\r\n|\n/.exec(text)?.[0] ?? '\n';
@@ -108,12 +112,7 @@ const header: Rule = {
             return;
           }
           invalidFields = inspection.invalidFields;
-          const hasInvalidFields = invalidFields.length > 0;
-          const hasFieldRepairs = inspection.repaired !== headerText;
-          if (hasInvalidFields && !hasFieldRepairs) {
-            context.report({ node, messageId: 'invalidValue', data: { fields: invalidFields.join(', ') } });
-            return;
-          }
+          hasFieldRepairs = inspection.repaired !== headerText;
           headerText = inspection.repaired;
           break;
         }
@@ -131,20 +130,31 @@ const header: Rule = {
           const existingNewlines = prefixWhitespace.match(/\n/g)?.length ?? 0;
           prefix = eol.repeat(Math.max(0, requiredNewlines - existingNewlines));
         }
-        const replacement = prefix + headerText.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
-        if (text.slice(anchor, contentStart) === replacement) return;
-        const remainingInvalidFields = first
-          ? invalidFields.filter((name) => prepared.invalidReplacementFields.includes(name))
-          : prepared.invalidReplacementFields;
+        const wouldMergeLineGroups =
+          first?.type === 'Line' && prepared.blankLinesAfter === 0 && text.startsWith('//', contentStart);
+        if (wouldMergeLineGroups) context.report({ node, messageId: 'unsafeSpacing' });
+        const separator = wouldMergeLineGroups
+          ? whitespace
+          : eol + (hasContent ? eol.repeat(prepared.blankLinesAfter) + indent : '');
+        const replacement = prefix + headerText.replace(/\n/g, eol) + separator;
+        let remainingInvalidFields = prepared.invalidReplacementFields;
+        if (first) {
+          remainingInvalidFields = hasFieldRepairs
+            ? invalidFields.filter((name) => prepared.invalidReplacementFields.includes(name))
+            : invalidFields;
+        }
         const repairedFields = invalidFields.filter((name) => !remainingInvalidFields.includes(name));
-        let messageId = first ? 'spacing' : 'missing';
-        if (invalidFields.length > 0) messageId = 'invalidValue';
-        context.report({
-          node,
-          messageId,
-          data: { fields: repairedFields.join(', ') },
-          fix: (fixer) => fixer.replaceTextRange([anchor, contentStart], replacement),
-        });
+        const hasChanges = text.slice(anchor, contentStart) !== replacement;
+        if (hasChanges) {
+          let messageId = first ? 'spacing' : 'missing';
+          if (repairedFields.length > 0) messageId = 'invalidValue';
+          context.report({
+            node,
+            messageId,
+            data: { fields: repairedFields.join(', ') },
+            fix: (fixer) => fixer.replaceTextRange([anchor, contentStart], replacement),
+          });
+        }
         // Oxlint removes fixed diagnostics without re-linting; retain errors needing human input.
         if (remainingInvalidFields.length > 0) {
           context.report({ node, messageId: 'invalidValue', data: { fields: remainingInvalidFields.join(', ') } });
