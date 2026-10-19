@@ -1,10 +1,11 @@
 # Headstamp
 
-An oxlint-first plugin that validates literal source headers and inserts missing
+An oxlint-first plugin that validates templated source headers and inserts missing
 ones safely. Supports JavaScript, TypeScript, JSX, and TSX.
 
-This first slice supports complete literal templates. Placeholder validation and
-field repair are planned in subsequent tickets.
+Supports complete literal templates and named, single-line placeholders with regex
+validation. Existing-field repair and the full incomplete-scaffold workflow remain
+follow-up work.
 
 ## Requirements
 
@@ -43,8 +44,15 @@ import { defineConfig } from 'oxlint';
 
 const header = {
   template: `/*
- * Copyright Acme
+ * Copyright {{years}} {{owner}}
  */`,
+  values: {
+    years: {
+      pattern: '\\d{4}(?:-\\d{4})?',
+      replacement: String(new Date().getUTCFullYear()),
+    },
+    owner: { pattern: 'Acme', replacement: 'Acme' },
+  },
 } satisfies HeaderOptions;
 
 export default defineConfig({
@@ -69,17 +77,45 @@ const header = {
 } satisfies HeaderOptions;
 ```
 
-Text files are literal; their extension has no meaning to Headstamp. Configuration
-can compute template text or import shared options, but the rule receives only the
-resulting string. JSON oxlint configuration also works with an inline string.
+Text files contain the same comment template, including placeholders; their
+extension has no meaning to Headstamp. Keep the `values` map alongside the template
+property when reading from a file. Configuration can compute replacement values or
+import shared options, but the rule receives strings, not executable functions.
+JSON oxlint configuration also works with inline template and value strings.
+
+## Placeholders
+
+Use `{{name}}` and define each name once in `values`, with a regex `pattern` string
+and a literal `replacement` string. Names use `[A-Za-z_][A-Za-z0-9_]*`. Repeated,
+undefined, or malformed placeholders and unused definitions are configuration errors.
+
+Patterns must match the entire field value. Existing `2020` and `2020-2024` years
+remain valid with the example above, even when the generated replacement is `2026`.
+Regex capture groups and backreferences are local to each pattern. Replacement
+strings are inserted literally, including dollar signs and backslashes.
+
+Placeholders capture single-line values and require literal text between them. A
+separator may occur inside a value if the patterns identify exactly one valid split.
+Multiple valid splits produce a diagnostic without autofix. A configuration whose
+otherwise-valid generated header has ambiguous field boundaries is rejected.
+
+Invalid existing fields are reported by name when their boundaries are clear and
+are left unchanged by `--fix`. Literal text identifies the header structure; changed
+wording or ambiguous invalid fields require manual review.
+
+Replacements may intentionally fail their pattern; this is not a configuration error.
+They must still be single-line and preserve the complete comment. Missing-header
+generation uses replacement strings, while validation uses field patterns. Full
+scaffold-completion behavior is reserved for a later slice.
 
 ## Header behavior
 
 - Templates contain exactly one complete `/* ... */` comment or consecutive `//`
   lines. Include the delimiters and desired internal whitespace. Trailing template
   newlines are ignored; LF and CRLF templates match either source convention.
-- Existing header text must match exactly, including internal whitespace. An
-  incorrect or unrecognized opening comment produces a diagnostic without autofix.
+- Literal header text must match exactly, including internal whitespace. Placeholder
+  values must match their patterns. An incorrect or unrecognized opening comment
+  produces a diagnostic without autofix.
   Consecutive opening `//` lines form one comment group: an extra line in that group
   requires manual review.
 - `oxlint --fix` inserts a missing header after any shebang, preserving a BOM,
@@ -122,6 +158,8 @@ files; no release or publishing step is included.
 Tests use oxlint's public rule-testing API and real CLI runs. CLI tests exercise
 TypeScript configuration and exported types, external templates, supported source
 languages, overrides/ignores, distinct configurations, and repeated fixes.
+Placeholder tests cover historical values, whole-value matching, literal replacement
+characters, malformed configuration, ambiguity, and source preservation.
 
 Implementation and tests are written in TypeScript. Both test commands strictly
 typecheck source and tests, then run the TypeScript tests with Node's built-in type

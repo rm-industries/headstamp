@@ -1,7 +1,7 @@
 # Headstamp
 
-Status: agreed product scope. The literal-header slice is implemented; placeholders
-and field repairs remain follow-up work.
+Status: literal headers, placeholder validation, and missing-header generation are
+implemented. Existing-field repair and the full scaffold workflow remain follow-up work.
 
 ## Purpose
 

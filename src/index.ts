@@ -1,8 +1,8 @@
 import type { RuleTester } from 'oxlint/plugins-dev';
 
-export interface HeaderOptions {
-  template: string;
-}
+import { prepareHeader } from './template.ts';
+
+export type { HeaderOptions, HeaderValue } from './template.ts';
 
 type Rule = Parameters<RuleTester['run']>[1];
 
@@ -13,7 +13,18 @@ const header: Rule = {
     schema: [
       {
         type: 'object',
-        properties: { template: { type: 'string' } },
+        properties: {
+          template: { type: 'string' },
+          values: {
+            type: 'object',
+            additionalProperties: {
+              type: 'object',
+              properties: { pattern: { type: 'string' }, replacement: { type: 'string' } },
+              required: ['pattern', 'replacement'],
+              additionalProperties: false,
+            },
+          },
+        },
         required: ['template'],
         additionalProperties: false,
       },
@@ -22,36 +33,22 @@ const header: Rule = {
       missing: 'Missing required header.',
       mismatch: 'Opening comment does not match the required header; review it manually.',
       spacing: 'Normalize spacing around the required header.',
+      invalidValue: 'Header field(s) {{fields}} do not match their patterns; review them manually.',
     },
   },
   createOnce(context) {
-    const templates = new Map<string, string>();
+    const templates = new Map<string, ReturnType<typeof prepareHeader>>();
     return {
       Program(node) {
-        const options = context.options[0];
         const hasOneOptionsArgument = context.options.length === 1;
-        const isOptionsObject = hasOneOptionsArgument && options !== null && typeof options === 'object';
-        const configuredTemplate = isOptionsObject && 'template' in options ? options.template : undefined;
-        const hasTemplateString = typeof configuredTemplate === 'string';
-        const hasOnlyTemplateOption = hasTemplateString && isOptionsObject && Object.keys(options).length === 1;
-        if (!hasTemplateString || !hasOnlyTemplateOption) {
-          throw new Error('Headstamp requires a template string.');
+        if (!hasOneOptionsArgument) throw new Error('Headstamp requires exactly one options object.');
+        const optionsKey = JSON.stringify(context.options);
+        let prepared = templates.get(optionsKey);
+        if (prepared === undefined) {
+          prepared = prepareHeader(context.options[0]);
+          templates.set(optionsKey, prepared);
         }
-        let template = templates.get(configuredTemplate);
-        if (template === undefined) {
-          template = configuredTemplate.replace(/\r\n/g, '\n').replace(/\n+$/, '');
-          const isBlockComment =
-            template.length >= 4 && template.startsWith('/*') && template.indexOf('*/') === template.length - 2;
-          const isLineCommentGroup = template.split('\n').every((line) => line.startsWith('//'));
-          const hasSupportedCommentStyle = isBlockComment || isLineCommentGroup;
-          const hasUnsupportedLineEndings = /[\r\u2028\u2029]/.test(template);
-          if (!hasSupportedCommentStyle || hasUnsupportedLineEndings) {
-            throw new Error(
-              'Headstamp template must be one complete block comment or consecutive // comments using LF or CRLF.',
-            );
-          }
-          templates.set(configuredTemplate, template);
-        }
+        let headerText = prepared.rendered;
         const source = context.sourceCode;
         const text = source.text;
         const eol = /\r\n|\n/.exec(text)?.[0] ?? '\n';
@@ -72,8 +69,14 @@ const header: Rule = {
               end = comment.range[1];
             }
           }
-          if (text.slice(start, end).replace(/\r\n/g, '\n') !== template) {
+          headerText = text.slice(start, end).replace(/\r\n/g, '\n');
+          const invalidFields = prepared.validate(headerText);
+          if (invalidFields === null) {
             context.report({ node, messageId: 'mismatch' });
+            return;
+          }
+          if (invalidFields.length > 0) {
+            context.report({ node, messageId: 'invalidValue', data: { fields: invalidFields.join(', ') } });
             return;
           }
         }
@@ -83,7 +86,7 @@ const header: Rule = {
         const indent = hasContent ? whitespace.slice(whitespace.lastIndexOf('\n') + 1) : '';
         const needsShebangNewline = shebang.length > 0 && !shebang.endsWith('\n');
         const prefix = needsShebangNewline ? eol : '';
-        const replacement = prefix + template.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
+        const replacement = prefix + headerText.replace(/\n/g, eol) + eol + (hasContent ? eol + indent : '');
         if (text.slice(anchor, contentStart) === replacement) return;
         context.report({
           node,
