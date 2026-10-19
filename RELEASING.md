@@ -33,9 +33,9 @@ recent npm CLI for OIDC. No `NPM_TOKEN` or other long-lived publish secret is us
 The publishing job uses the GitHub environment `npm-release`; configure any desired
 reviewers in that environment before relying on environment approval protection.
 
-The source repository remains private. npm trusted publishing works in this case,
-but npm provenance is unavailable for private source repositories. The workflow
-does not request provenance or change repository visibility.
+The source repository and npm package are public. npm automatically generates
+provenance for GitHub Actions trusted publishing, so the workflow does not need
+an explicit provenance flag.
 
 References: [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and
 [npm staged publishing](https://docs.npmjs.com/staged-publishing/).
