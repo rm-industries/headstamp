@@ -4,8 +4,8 @@ An oxlint-first plugin that validates templated source headers and inserts missi
 ones safely. Supports JavaScript, TypeScript, JSX, and TSX.
 
 Supports complete literal templates and named, single-line placeholders with regex
-validation and safe repair of invalid fields. The full incomplete-scaffold workflow
-remains follow-up work.
+validation, safe repair of invalid fields, and incomplete scaffolds requiring human
+input.
 
 ## Requirements
 
@@ -109,8 +109,43 @@ the header structure; changed wording or ambiguous extraction requires manual re
 
 Replacements may intentionally fail their pattern; this is not a configuration error.
 They must still be single-line and preserve the complete comment. Missing-header
-generation uses replacement strings, while validation uses field patterns. Full
-scaffold-completion behavior is reserved for a later slice.
+generation uses replacement strings, while validation uses field patterns.
+
+## Incomplete scaffolds
+
+A field can require human input by providing an intentionally invalid replacement:
+
+```ts
+const header = {
+  template: '// Owner: {{owner}}\n// Description: {{description}}',
+  values: {
+    owner: { pattern: 'Acme', replacement: 'Acme' },
+    description: { pattern: '\\S.{9,}', replacement: '' },
+  },
+} satisfies HeaderOptions;
+```
+
+The description must start with a non-whitespace character and contain at least ten
+characters. Running `oxlint --fix` on a file without a header inserts:
+
+```ts
+// Owner: Acme
+// Description:
+
+export {};
+```
+
+The generated description line retains the template’s space after the colon.
+Successful insertion still leaves a lint error for `description`, so the CLI exits
+unsuccessfully. Fill in a valid description, then lint again to pass. An invalid
+nonempty replacement such as `TODO` works the same way.
+
+Repeated fixes preserve the scaffold and keep reporting the incomplete field
+without offering a no-op edit. Existing unfinished text such as `WIP` is preserved
+rather than reset to the replacement. Other independently safe repairs, such as
+correcting the owner, still apply while the description remains incomplete. Valid
+fields, including historical years, stay unchanged. Ambiguous field boundaries
+still require manual review.
 
 ## Header behavior
 

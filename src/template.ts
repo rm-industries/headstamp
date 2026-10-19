@@ -145,8 +145,11 @@ export function prepareHeader(options: unknown) {
     const hasSafeRepair = isCompleteComment(repaired) && preservesFieldBoundaries;
     return { invalidFields, repaired: hasSafeRepair ? repaired : comment };
   }
-  const replacementsMatchPatterns = fields.every((field) => field.pattern.test(field.replacement));
+  const invalidReplacementFields = fields
+    .filter((field) => !field.pattern.test(field.replacement))
+    .map((field) => field.name);
+  const replacementsMatchPatterns = invalidReplacementFields.length === 0;
   const hasAmbiguousGeneratedHeader = replacementsMatchPatterns && inspect(rendered) === null;
   if (hasAmbiguousGeneratedHeader) throw new Error('Headstamp generated header has ambiguous placeholder boundaries.');
-  return { rendered, inspect };
+  return { rendered, inspect, invalidReplacementFields };
 }

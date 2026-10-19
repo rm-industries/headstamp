@@ -1,7 +1,7 @@
 # Headstamp
 
-Status: literal headers, placeholder validation, missing-header generation, and safe
-existing-field repair are implemented. The full scaffold workflow remains follow-up work.
+Status: literal headers, placeholder validation, missing-header generation, safe
+existing-field repair, and intentionally incomplete scaffolds are implemented.
 
 ## Purpose
 

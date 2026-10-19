@@ -299,3 +299,66 @@ test('field repairs preserve historical years and converge through the CLI', (t)
     assert.equal(readFileSync(source, 'utf8'), expected);
   }
 });
+
+test('incomplete scaffolds remain unsuccessful and stable until human completion', (t) => {
+  const directory = mkdtempSync(join(root, '.headstamp-test-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(
+    join(directory, '.oxlintrc.json'),
+    JSON.stringify({
+      categories: { correctness: 'off' },
+      jsPlugins: [{ name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp' }],
+      rules: {
+        'headstamp/header': [
+          'error',
+          {
+            template: '/* Copyright {{years}} {{owner}}\n * Description: {{description}}\n */',
+            values: {
+              years: { pattern: '\\d{4}(?:-\\d{4})?', replacement: '2026' },
+              owner: { pattern: 'Acme', replacement: 'Acme' },
+              description: { pattern: '\\S.{9,}', replacement: '' },
+            },
+          },
+        ],
+      },
+    }),
+  );
+  const source = join(directory, 'source.ts');
+  const lint = (...args: string[]) =>
+    spawnSync(process.execPath, [cli, '--format', 'default', '--threads', '1', ...args, 'source.ts'], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+  const read = () => readFileSync(source, 'utf8');
+  const scaffold = '/* Copyright 2026 Acme\n * Description: \n */\n\nexport {};\n';
+  writeFileSync(source, 'export {};\n');
+  for (let run = 0; run < 3; run++) {
+    const result = lint('--fix');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /description do not match/);
+    assert.equal(read(), scaffold);
+  }
+  const incomplete = lint();
+  assert.equal(incomplete.status, 1, incomplete.stdout + incomplete.stderr);
+  assert.match(incomplete.stdout + incomplete.stderr, /description do not match/);
+  assert.equal(read(), scaffold);
+
+  writeFileSync(source, '/* Copyright 2001-2004 Other\n * Description: WIP\n */\n\nexport {};\n');
+  const attempted = '/* Copyright 2001-2004 Acme\n * Description: WIP\n */\n\nexport {};\n';
+  for (let run = 0; run < 2; run++) {
+    const result = lint('--fix');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /description do not match/);
+    assert.doesNotMatch(result.stdout + result.stderr, /Header field\(s\) (?:years|owner)/);
+    assert.equal(read(), attempted);
+  }
+
+  const completed = '/* Copyright 2001-2004 Acme\n * Description: Loads application settings.\n */\n\nexport {};\n';
+  writeFileSync(source, completed);
+  const valid = lint();
+  assert.equal(valid.status, 0, valid.stdout + valid.stderr);
+  const fixed = lint('--fix');
+  assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
+  assert.equal(read(), completed);
+});

@@ -58,7 +58,10 @@ tester.run('header field repairs', plugin.rules.header, {
           },
         },
       ],
-      errors: [{ messageId: 'invalidValue', data: { fields: 'owner, description' } }],
+      errors: [
+        { messageId: 'invalidValue', data: { fields: 'owner' } },
+        { messageId: 'invalidValue', data: { fields: 'description' } },
+      ],
       output: '// Owner: Acme\n// Description: WIP\n\nexport {};\n',
     },
     {
