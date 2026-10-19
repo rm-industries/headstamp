@@ -94,3 +94,17 @@ fixes if exposed. No new options, dependencies, or publishing steps.
    public documentation while retaining preservation of source line endings.
 4. Typecheck and run focused tests throughout. Review standards and spec coverage,
    run the full suite and quality/package checks, then commit this slice.
+
+## Npm release CI
+
+Prepare public npm releases from deliberately published GitHub releases, with MIT
+licensing matching RM Industries projects. Reuse the existing quality and Node
+matrix through a callable workflow. Validate versions, pack a reviewed artifact,
+and isolate OIDC permission to the publishing job. Manual runs are dry-run only.
+
+Verify release validation and publication decisions through their CLI boundaries,
+mocking only npm for publication tests. Check workflow syntax with actionlint and
+exercise actual packing and dry-run publication locally. Verify the packed public
+exports. Document the required npm bootstrap and trusted-publisher configuration;
+no real npm publication, repository-visibility change, or credentials setup is part
+of this preparation change.

@@ -1,0 +1,132 @@
+name: Npm Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  checks:
+    name: Release checks
+    uses: ./.github/workflows/project.yml
+    permissions:
+      contents: read
+
+  prepare:
+    name: Prepare tested npm package
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      tarball: ${{ steps.package.outputs.tarball }}
+      commit: ${{ steps.package.outputs.commit }}
+      package-name: ${{ steps.package.outputs.package-name }}
+      version: ${{ steps.package.outputs.version }}
+      integrity: ${{ steps.package.outputs.integrity }}
+      npm-tag: ${{ steps.plan.outputs.npm-tag }}
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a commit from main
+        run: git merge-base --is-ancestor HEAD origin/main
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '26.x'
+          package-manager-cache: false
+      - name: Validate release tag and version
+        if: github.event_name == 'release'
+        id: plan
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: node scripts/validate-release.ts >> "$GITHUB_OUTPUT"
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build and pack release
+        run: npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/headstamp-pack.json"
+      - name: Verify package contents
+        id: package
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          const [pack] = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, 'headstamp-pack.json'), 'utf8'));
+          const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
+          assert.equal(pack.name, manifest.name);
+          assert.equal(pack.version, manifest.version);
+          assert.deepEqual(pack.files.map(({ path }) => path).sort(), [
+            'LICENSE', 'README.md', 'dist/index.d.ts', 'dist/index.js',
+            'dist/template.d.ts', 'dist/template.js', 'package.json',
+          ]);
+          const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          appendFileSync(process.env.GITHUB_OUTPUT, [
+            `tarball=${pack.filename}`, `commit=${commit}`, `package-name=${pack.name}`,
+            `version=${pack.version}`, `integrity=${pack.integrity}`, '',
+          ].join('\n'));
+          NODE
+      - name: Verify publication without publishing
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: npm publish "$RUNNER_TEMP/$TARBALL" --dry-run --ignore-scripts --access public
+      - name: Save reviewed package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/${{ steps.package.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  publish:
+    name: Publish to npm
+    if: github.event_name == 'release'
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          persist-credentials: false
+      - name: Setup Node.js for trusted publishing
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '26.x'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Download verified package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: npm-package
+          path: release
+      - name: Publish verified tarball with OIDC
+        env:
+          TARBALL: ${{ needs.prepare.outputs.tarball }}
+          NPM_TAG: ${{ needs.prepare.outputs.npm-tag }}
+          PACKAGE_NAME: ${{ needs.prepare.outputs.package-name }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.version }}
+          EXPECTED_INTEGRITY: ${{ needs.prepare.outputs.integrity }}
+        run: node scripts/publish-release.ts

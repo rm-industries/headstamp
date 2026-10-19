@@ -261,7 +261,11 @@ Git ignore rules and the project's additional exclusions.
 GitHub Actions checks formatting and lint on pull requests and pushes to the main
 branch. A Node 22.18, 24, and 26 matrix runs strict typechecking, the package build,
 all tests, and package-content inspection. CI checks formatting without rewriting
-files; no release or publishing step is included.
+files. Publishing a GitHub release triggers a separate npm release workflow after
+those same checks; manual release-workflow runs prepare an artifact without
+publishing. See [RELEASING.md](RELEASING.md) for bootstrap, trusted-publisher setup,
+and version/tag requirements. No npm package has been published as part of adding
+this workflow.
 
 Tests use oxlint's public rule-testing API and real CLI runs. CLI tests exercise
 TypeScript configuration and exported types, external templates, supported source
