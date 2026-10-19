@@ -147,6 +147,45 @@ correcting the owner, still apply while the description remains incomplete. Vali
 fields, including historical years, stay unchanged. Ambiguous field boundaries
 still require manual review.
 
+## Permitted leading comments
+
+Use `allowedLeadingComments` to preserve explicitly permitted directives or pragmas
+before the required header:
+
+```ts
+const header = {
+  template: '/* Acme */',
+  allowedLeadingComments: ['// @ts-check', { pattern: '/\\*\\* @jest-environment [\\s\\S]*?\\*/' }],
+} satisfies HeaderOptions;
+```
+
+The default is an empty allowlist. Entries are complete literal comments or objects
+with a regex `pattern` string. Patterns match the entire comment, including its
+delimiters, with no flags; use explicit multiline expressions when needed. Literal
+and source CRLF are normalized to LF for matching, while original prefix bytes are
+preserved. Malformed literals, regexes, or option shapes are configuration errors.
+
+A matching unit is one block comment or a consecutive `//` group. Headstamp never
+splits a group to accept only some of its lines. Separate an existing line-comment
+prefix and line-comment header with a blank line. Insertion adds the newline(s)
+needed to keep these groups separate on subsequent runs.
+
+Only the opening prefix after any BOM/shebang is considered. The required header
+takes precedence over a matching allowlist entry, including when its fields need
+repair. An ambiguous header remains diagnostic-only. Unknown comments stop the
+search without autofix; source code ends the prefix, and later comments are not
+searched for a header.
+
+Permitted comments are never generated, repaired, or reordered. Their text and
+spacing are preserved, including whitespace before an existing or inserted header.
+Insertion adds a separator only when needed. Prefix-only files receive a header
+with one final newline. Source indentation, historical fields, and unfinished
+human input remain protected, and repeated fixes converge.
+
+The allowlist does not change the one-blank-line requirement after the header.
+This rule preserves source LF/CRLF; it does not read EditorConfig or convert the
+rest of a file's line endings.
+
 ## Header behavior
 
 - Templates contain exactly one complete `/* ... */` comment or consecutive `//`
@@ -158,10 +197,11 @@ still require manual review.
   a diagnostic without autofix.
   Consecutive opening `//` lines form one comment group: an extra line in that group
   requires manual review.
-- `oxlint --fix` inserts a missing header after any shebang, preserving a BOM,
-  source code, and separate later comments.
+- `oxlint --fix` inserts a missing header after any shebang and permitted opening
+  comments, preserving a BOM, source code, and separate later comments.
 - Matching headers get one blank line before subsequent content. Indentation of
-  subsequent content is retained. Leading whitespace before the header is removed.
+  subsequent content is retained. Without a permitted prefix, leading whitespace
+  before the header is removed; prefix spacing is preserved when present.
 - Empty, whitespace-only, and header-only files end with the header and exactly one
   final newline. They do not receive an empty trailing paragraph.
 - Edits use the first LF or CRLF convention present in the source, defaulting to LF

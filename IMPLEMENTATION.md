@@ -70,3 +70,16 @@ TypeScript behavioral tests, and documentation.
 
 Scope: TypeScript rule/CLI tests and documentation, plus narrowly necessary runtime
 fixes if exposed. No new options, dependencies, or publishing steps.
+
+## Permitted leading comments — #11
+
+1. Add a public rule regression for recognizing a literal prefix before a header;
+   observe it fail, then extend typed options and prepared matchers.
+2. Walk only the opening comment prefix, prioritizing the required header and
+   preserving prefix bytes. Test insertion, repair, comment grouping, source
+   boundaries, and scaffold diagnostics in focused vertical slices.
+3. Verify regex allowlists, invalid configuration, typed exports, override isolation,
+   and repeated fixes through the agreed public rule and real CLI seams. Document
+   prefix matching and preservation without adding configurable spacing or formats.
+4. Typecheck throughout, review standards and issue coverage, then run the full
+   suite and quality/package checks and commit on the feature branch.
