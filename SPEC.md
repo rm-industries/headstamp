@@ -2,7 +2,7 @@
 
 Status: literal headers, placeholder validation, missing-header generation, safe
 existing-field repair, intentionally incomplete scaffolds, and permitted leading
-comments are implemented.
+comments and configurable header spacing are implemented.
 
 ## Purpose
 
@@ -164,15 +164,34 @@ indentation, valid field values, and unfinished scaffold input; outstanding huma
 input remains a lint error after fixes. Cache complete options without leaking
 allowlists across overrides.
 
-The header-to-source spacing requirement remains one blank line. Configurable
-spacing and broader format coverage are separate follow-up work. No EditorConfig
-integration or forced line-ending conversion is introduced.
+The header-to-source spacing requirement is controlled by `blankLinesAfter` and
+defaults to one blank line. Broader format coverage remains separate follow-up work.
+No EditorConfig integration or forced line-ending conversion is introduced.
+
+## Configurable header spacing
+
+The optional `blankLinesAfter` number must be a nonnegative safe integer and
+defaults to `1`. Require exactly this many empty lines before subsequent content;
+zero still separates the header and source with a newline. Add missing or remove
+excess lines only at the header boundary. Preserve permitted prefix text/spacing,
+source indentation, unrelated comments, and LF/CRLF. Empty and header-only files
+retain exactly one final newline regardless of the count.
+
+If zero would merge a line header into following line-comment documentation,
+report the conflict without applying that spacing edit. A block header or a count
+of at least one keeps the comment groups distinct. Independently safe field
+repairs remain available. Safe spacing edits also remain available when fields
+need human input; preserve unfinished values and their outstanding diagnostics.
+
+Reject invalid counts before source edits, include the option in complete cached
+configuration, isolate overrides, and omit no-op fixes. Repeated fixes converge.
 
 ## Source preservation
 
 - Preserve BOMs and shebangs; insert the header after them.
 - Preserve the source file's LF or CRLF convention.
-- Enforce one blank line between the header and subsequent source content.
+- Enforce the configured number of blank lines (default one) between the header
+  and subsequent source content when comment-group safety permits the edit.
 - Do not overwrite unrelated comments or source code.
 - Files without an established line-ending convention use LF. Empty files and
   header-only files must have a documented, tested trailing-newline behavior.

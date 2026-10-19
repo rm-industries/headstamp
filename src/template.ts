@@ -7,6 +7,7 @@ export interface HeaderOptions {
   template: string;
   values?: Record<string, HeaderValue>;
   allowedLeadingComments?: Array<string | { pattern: string }>;
+  blankLinesAfter?: number;
 }
 
 interface Field {
@@ -79,10 +80,14 @@ export function prepareHeader(options: unknown) {
   const configuredTemplate = options.template;
   const hasTemplateString = typeof configuredTemplate === 'string';
   const hasKnownOptions = Object.keys(options).every(
-    (key) => key === 'template' || key === 'values' || key === 'allowedLeadingComments',
+    (key) => key === 'template' || key === 'values' || key === 'allowedLeadingComments' || key === 'blankLinesAfter',
   );
   if (!hasTemplateString || !hasKnownOptions)
     throw new Error('Headstamp requires a template string and optional values map.');
+  const blankLinesAfter = options.blankLinesAfter === undefined ? 1 : options.blankLinesAfter;
+  const hasValidBlankLineCount =
+    typeof blankLinesAfter === 'number' && Number.isSafeInteger(blankLinesAfter) && blankLinesAfter >= 0;
+  if (!hasValidBlankLineCount) throw new Error('Headstamp blankLinesAfter must be a nonnegative safe integer.');
   const leadingComments = options.allowedLeadingComments === undefined ? [] : options.allowedLeadingComments;
   if (!Array.isArray(leadingComments)) throw new Error('Headstamp allowedLeadingComments must be an array.');
   const allowedLeadingComments = leadingComments.map((comment: unknown) => {
@@ -189,6 +194,7 @@ export function prepareHeader(options: unknown) {
   if (hasAmbiguousGeneratedHeader) throw new Error('Headstamp generated header has ambiguous placeholder boundaries.');
   return {
     rendered,
+    blankLinesAfter,
     inspect,
     invalidReplacementFields,
     isAllowedLeadingComment: (comment: string) =>

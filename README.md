@@ -182,9 +182,36 @@ Insertion adds a separator only when needed. Prefix-only files receive a header
 with one final newline. Source indentation, historical fields, and unfinished
 human input remain protected, and repeated fixes converge.
 
-The allowlist does not change the one-blank-line requirement after the header.
+The allowlist does not change spacing before the header; `blankLinesAfter` controls
+only the boundary after it.
 This rule preserves source LF/CRLF; it does not read EditorConfig or convert the
 rest of a file's line endings.
+
+## Spacing after the header
+
+Set `blankLinesAfter` to the exact number of empty lines required before subsequent
+content. It defaults to `1`; values must be nonnegative safe integers.
+
+```ts
+const header = {
+  template: '/* Acme */',
+  blankLinesAfter: 0,
+} satisfies HeaderOptions;
+```
+
+Zero places source on the following line without an empty line. A value of `3`
+requires three empty lines. Fixes add missing or remove excess lines, preserving
+source indentation and LF/CRLF. Empty and header-only files always end with one
+final newline, regardless of the configured count. Prefix spacing stays unchanged.
+
+A zero count cannot safely join a `//` header to following `//` documentation:
+that would merge separate comment groups on the next lint run. Headstamp reports
+this conflict without changing that separator. Use a block header or at least one
+blank line. Independently safe field repairs still apply.
+
+Spacing fixes can also apply while required scaffold fields are incomplete. The
+unfinished text and its lint errors remain until valid human input is supplied.
+Repeated fixes converge and do not offer no-op edits.
 
 ## Header behavior
 
@@ -199,7 +226,8 @@ rest of a file's line endings.
   requires manual review.
 - `oxlint --fix` inserts a missing header after any shebang and permitted opening
   comments, preserving a BOM, source code, and separate later comments.
-- Matching headers get one blank line before subsequent content. Indentation of
+- Headers get exactly `blankLinesAfter` empty lines before subsequent content
+  (default `1`) when the edit preserves separate comment groups. Indentation of
   subsequent content is retained. Without a permitted prefix, leading whitespace
   before the header is removed; prefix spacing is preserved when present.
 - Empty, whitespace-only, and header-only files end with the header and exactly one
