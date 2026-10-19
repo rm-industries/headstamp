@@ -29,9 +29,12 @@ They also cover LF/CRLF, BOM-only and shebang-only prefixes, and mixed-file
 configuration overrides, disabled rules, and ignores.
 
 Use oxlint's existing file discovery, overrides, and ignores; Headstamp adds no
-file selector or parser. Framework files such as Vue, Svelte, and Astro remain a
-separate capability investigation. Their physical-file headers are not verified
-or advertised as supported.
+file selector or parser. Physical-file headers in Vue, Svelte, and Astro are
+deferred on oxlint 1.88.0: scriptless files do not invoke the plugin, and scripts
+expose separate source/edit regions. Enabling the rule there can insert per-script
+banners rather than one physical-file header. Exclude those formats with oxlint
+overrides/ignores when enforcing physical headers. See the [framework investigation](docs/framework-upstream-research.md)
+for separate decisions, reproducible CLI probes, and pinned upstream references.
 
 ## Try the local package
 

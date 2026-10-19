@@ -122,3 +122,20 @@ needed when these behavioral checks pass; framework investigation remains #14.
 Run focused CLI tests and strict typechecking during implementation, then review
 against merged main and issue #13. Finish with the complete regression suite,
 formatting, lint, and package-content checks before committing.
+
+## Framework physical-file investigation — #14
+
+Probe Vue, Svelte, and Astro independently through the agreed real CLI seam,
+using a typed observation rule and actual Headstamp fixes on temporary files.
+Cover scriptless, single-script, multi-region, existing physical-header, and
+unrelated-comment cases, with a separate Astro frontmatter fixture. Record source
+views, ranges, physical diagnostic mapping, edit placement, preservation, and
+repeated fixes. Maintain behavioral assertions for the observed blockers.
+
+Compare local oxlint 1.88.0 results with pinned upstream source and current docs;
+record separate support decisions and reproduction commands. Defer physical-file
+support where callbacks or physical edit boundaries are unavailable. Preserve the
+ordinary-source implementation; no parser, rewriter, or dependency is added.
+
+Run focused CLI tests and strict typechecking, then full regression/quality/package
+checks and separate standards/spec reviews before completing this branch.
