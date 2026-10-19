@@ -246,14 +246,56 @@ export default defineConfig({
   assert.equal(read('historical.ts'), '/* Copyright 2001-2004 Acme */\n\nexport {};\n');
   const invalid = '/* Copyright 202X Acme */\n\nexport {};\n';
   write('source.js', invalid);
-  const report = lint('--fix', 'source.js');
+  const report = lint('source.js');
   assert.equal(report.status, 1, report.stdout + report.stderr);
   assert.match(report.stdout + report.stderr, /year do not match/);
   assert.equal(read('source.js'), invalid);
+  const repaired = lint('--fix', 'source.js');
+  assert.equal(repaired.status, 0, repaired.stdout + repaired.stderr);
+  assert.equal(read('source.js'), '/* Copyright 2026 Acme */\n\nexport {};\n');
   const alternateInvalid = '/* Copyright 2026 Acme */\n\nexport {};\n';
   write('alternate.ts', alternateInvalid);
-  const alternateReport = lint('--fix', 'alternate.ts');
+  const alternateReport = lint('alternate.ts');
   assert.equal(alternateReport.status, 1, alternateReport.stdout + alternateReport.stderr);
   assert.match(alternateReport.stdout + alternateReport.stderr, /year, owner do not match/);
   assert.equal(read('alternate.ts'), alternateInvalid);
+  const alternateRepaired = lint('--fix', 'alternate.ts');
+  assert.equal(alternateRepaired.status, 0, alternateRepaired.stdout + alternateRepaired.stderr);
+  assert.equal(read('alternate.ts'), '/* Copyright 1999 Other */\n\nexport {};\n');
+});
+
+test('field repairs preserve historical years and converge through the CLI', (t) => {
+  const directory = mkdtempSync(join(root, '.headstamp-test-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(
+    join(directory, '.oxlintrc.json'),
+    JSON.stringify({
+      categories: { correctness: 'off' },
+      jsPlugins: [{ name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp' }],
+      rules: {
+        'headstamp/header': [
+          'error',
+          {
+            template: '/* Copyright {{years}} {{owner}} */',
+            values: {
+              years: { pattern: '\\d{4}(?:-\\d{4})?', replacement: '2026' },
+              owner: { pattern: 'Acme', replacement: 'Acme' },
+            },
+          },
+        ],
+      },
+    }),
+  );
+  const source = join(directory, 'source.ts');
+  writeFileSync(source, '\uFEFF/* Copyright 2001-2004 Other */\r\n  export const value: number = 1;\r\n');
+  const expected = '\uFEFF/* Copyright 2001-2004 Acme */\r\n\r\n  export const value: number = 1;\r\n';
+  for (let run = 0; run < 3; run++) {
+    const result = spawnSync(process.execPath, [cli, '--format', 'default', '--fix', 'source.ts'], {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(readFileSync(source, 'utf8'), expected);
+  }
 });

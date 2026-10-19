@@ -118,17 +118,35 @@ export function prepareHeader(options: unknown) {
   if (Object.keys(values).length !== fields.length)
     throw new Error('Headstamp values must define exactly the template placeholders.');
 
-  let rendered = parts[0];
-  for (const [index, field] of fields.entries()) rendered += field.replacement + parts[index + 1];
+  function render(fieldValues: string[]): string {
+    let comment = parts[0];
+    for (const [index, value] of fieldValues.entries()) comment += value + parts[index + 1];
+    return comment;
+  }
+  const rendered = render(fields.map((field) => field.replacement));
   if (!isCompleteComment(rendered)) throw new Error('Headstamp replacement values must preserve the complete comment.');
-  function validate(comment: string): string[] | null {
-    if (fields.length === 0) return comment === template ? [] : null;
+  function inspect(comment: string): { invalidFields: string[]; repaired: string } | null {
+    if (fields.length === 0) return comment === template ? { invalidFields: [], repaired: comment } : null;
     const values = matchValues(comment, parts, fields, true) ?? matchValues(comment, parts, fields, false);
     if (values === null) return null;
-    return fields.filter((field, index) => !field.pattern.test(values[index])).map((field) => field.name);
+    const invalidFields: string[] = [];
+    const repairedValues = values.map((value, index) => {
+      const field = fields[index];
+      if (field.pattern.test(value)) return value;
+      invalidFields.push(field.name);
+      const hasValidReplacement = field.pattern.test(field.replacement);
+      return hasValidReplacement ? field.replacement : value;
+    });
+    const repaired = render(repairedValues);
+    if (repaired === comment) return { invalidFields, repaired };
+    const resultingValues = matchValues(repaired, parts, fields, true) ?? matchValues(repaired, parts, fields, false);
+    const preservesFieldBoundaries =
+      resultingValues !== null && resultingValues.every((value, index) => value === repairedValues[index]);
+    const hasSafeRepair = isCompleteComment(repaired) && preservesFieldBoundaries;
+    return { invalidFields, repaired: hasSafeRepair ? repaired : comment };
   }
   const replacementsMatchPatterns = fields.every((field) => field.pattern.test(field.replacement));
-  const hasAmbiguousGeneratedHeader = replacementsMatchPatterns && validate(rendered) === null;
+  const hasAmbiguousGeneratedHeader = replacementsMatchPatterns && inspect(rendered) === null;
   if (hasAmbiguousGeneratedHeader) throw new Error('Headstamp generated header has ambiguous placeholder boundaries.');
-  return { rendered, validate };
+  return { rendered, inspect };
 }

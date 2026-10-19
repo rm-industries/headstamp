@@ -38,3 +38,20 @@ mistaking a different opening comment for the configured header.
 Scope: public types, internal template preparation/matching, existing rule lifecycle,
 TypeScript tests and usage docs. Existing-field repairs and scaffold completion
 remain in #4 and #5. No new dependencies or configuration loaders.
+
+## Safe existing-field repairs — #4
+
+1. Add a public rule regression that repairs an invalid owner while retaining a
+   valid historical year range; observe it fail before implementation.
+2. Reuse unique field extraction and compiled validators to replace only invalid
+   fields with valid replacement strings. Keep ambiguous structures and unsafe
+   proposed repairs diagnostic-only, and preserve source text outside the header.
+3. Cover literal replacement characters, invalid replacement values, line endings,
+   source prefixes, and convergence at the existing rule and CLI seams. Update
+   earlier diagnostic-only expectations and document repair eligibility.
+4. Typecheck and run focused tests during implementation, review standards and
+   issue coverage, then run final quality checks and commit on this branch.
+
+No public options changes or new dependencies. Missing-header scaffold completion
+remains in #5. Changes reach template inspection, the rule's existing fix path,
+TypeScript behavioral tests, and documentation.
