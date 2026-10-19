@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolve } from 'node:path';
 
 const { TARBALL, PACKAGE_NAME, PACKAGE_VERSION, EXPECTED_INTEGRITY, NPM_TAG } = process.env;
 assert(TARBALL && PACKAGE_NAME && PACKAGE_VERSION && EXPECTED_INTEGRITY && NPM_TAG, 'Release metadata is required.');
-const path = join('release', TARBALL);
+const path = resolve('release', TARBALL);
 const integrity = `sha512-${createHash('sha512').update(readFileSync(path)).digest('base64')}`;
 assert.equal(integrity, EXPECTED_INTEGRITY, 'Downloaded tarball must match the prepared package.');
 const registry = spawnSync('npm', ['view', `${PACKAGE_NAME}@${PACKAGE_VERSION}`, 'dist.integrity', '--json'], {

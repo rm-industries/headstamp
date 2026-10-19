@@ -1,6 +1,6 @@
 {
   "name": "@rm-industries/oxlint-plugin-headstamp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Oxlint-first header templates, regex validation, and safe insertion.",
   "license": "MIT",
   "repository": {
