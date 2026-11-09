@@ -1,7 +1,18 @@
 {
   "name": "@rm-industries/oxlint-plugin-headstamp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Oxlint-first header templates, regex validation, and safe insertion.",
+  "keywords": [
+    "autofix",
+    "copyright-header",
+    "file-header",
+    "header-template",
+    "javascript",
+    "license-header",
+    "oxlint",
+    "oxlint-plugin",
+    "typescript"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -34,8 +45,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
-    "oxfmt": "^0.75.0",
-    "oxlint": "^1.88.0",
+    "oxfmt": "^0.78.0",
+    "oxlint": "^1.93.0",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
