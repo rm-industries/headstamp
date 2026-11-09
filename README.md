@@ -14,7 +14,7 @@ input.
 
 Headstamp uses oxlint's `createOnce` API with a `Program` visitor. JavaScript plugins
 are still an alpha oxlint feature. CI verifies the lockfile's exact versions,
-currently oxlint 1.88.0. No benchmarked performance improvement is claimed.
+currently oxlint 1.93.0. No benchmarked performance improvement is claimed.
 
 Development and peer dependencies use caret ranges. The committed lockfile and
 `npm ci` keep installs reproducible; dependency updates must pass the same checks.
@@ -36,19 +36,10 @@ banners rather than one physical-file header. Exclude those formats with oxlint
 overrides/ignores when enforcing physical headers. See the [framework investigation](docs/framework-upstream-research.md)
 for separate decisions, reproducible CLI probes, and pinned upstream references.
 
-## Try the local package
-
-The npm package has not been published. Build this checkout first:
+## Install
 
 ```sh
-npm ci
-npm run build
-```
-
-Then install it in your consuming project:
-
-```sh
-npm install --save-dev /path/to/headstamp oxlint@1.88.0
+npm install --save-dev @rm-industries/oxlint-plugin-headstamp oxlint@^1.88.0
 ```
 
 ## Configure
@@ -99,6 +90,61 @@ extension has no meaning to Headstamp. Keep the `values` map alongside the templ
 property when reading from a file. Configuration can compute replacement values or
 import shared options, but the rule receives strings, not executable functions.
 JSON oxlint configuration also works with inline template and value strings.
+
+## SPDX header example
+
+Use this in `oxlint.config.ts`. Change `MIT` and `Acme` to your project's
+license identifier and copyright holder.
+
+```ts
+import { defineConfig } from 'oxlint';
+
+const year = String(new Date().getUTCFullYear());
+
+export default defineConfig({
+  jsPlugins: [{ name: 'headstamp', specifier: '@rm-industries/oxlint-plugin-headstamp' }],
+  overrides: [
+    {
+      files: ['src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      rules: {
+        'headstamp/header': [
+          'error',
+          {
+            template: '// SPDX-License-Identifier: {{license}}\n// SPDX-FileCopyrightText: {{years}} Acme',
+            values: {
+              license: { pattern: 'MIT', replacement: 'MIT' },
+              years: { pattern: '\\d{4}(?:-\\d{4})?', replacement: year },
+            },
+          },
+        ],
+      },
+    },
+  ],
+});
+```
+
+With `oxlint --fix`, a missing header gets the configured license and year.
+An existing header with the wrong license identifier can be repaired without
+changing a valid year or year range.
+
+### Optional Git-derived year
+
+To use the latest commit's year as the default, replace the `year` declaration
+above with this snippet. This runs Git once when the config loads. It uses the
+same year for every file; it does not infer per-file history. If Git is missing
+or the checkout has no commits, it falls back to the current UTC year.
+
+```ts
+import { spawnSync } from 'node:child_process';
+
+const commitDate = spawnSync('git', ['log', '-1', '--format=%cs'], {
+  cwd: new URL('.', import.meta.url),
+  encoding: 'utf8',
+  timeout: 10000,
+});
+const gitYear = commitDate.status === 0 ? /^(\d{4})-/.exec(commitDate.stdout)?.[1] : undefined;
+const year = gitYear ?? String(new Date().getUTCFullYear());
+```
 
 ## Placeholders
 
@@ -281,8 +327,7 @@ all tests, and package-content inspection. CI checks formatting without rewritin
 files. Publishing a GitHub release triggers a separate npm release workflow after
 those same checks; manual release-workflow runs prepare an artifact without
 publishing. See [RELEASING.md](RELEASING.md) for bootstrap, trusted-publisher setup,
-and version/tag requirements. No npm package has been published as part of adding
-this workflow.
+and version/tag requirements.
 
 Tests use oxlint's public rule-testing API and real CLI runs. CLI tests exercise
 TypeScript configuration and exported types, external templates, supported source
